@@ -1,5 +1,5 @@
 (function() {
-  var BlockquoteButton, BoldButton, Button, CodeButton, CodePopover, Formatter, ImageButton, ImagePopover, InputManager, ItalicButton, LinkButton, LinkPopover, ListButton, OrderListButton, Popover, Selection, Simditor, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util, _ref, _ref1, _ref10, _ref11, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9,
+  var BlockquoteButton, BoldButton, Button, CodeButton, CodePopover, Formatter, ImageButton, ImagePopover, IndentButton, InputManager, ItalicButton, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __slice = [].slice,
@@ -277,7 +277,14 @@
     Formatter.prototype._allowedAttributes = {
       img: ['src', 'alt', 'width', 'height', 'data-origin-src', 'data-origin-size', 'data-origin-name'],
       a: ['href', 'target'],
-      pre: ['data-lang']
+      pre: ['data-lang'],
+      p: ['data-indent'],
+      h1: ['data-indent'],
+      h2: ['data-indent'],
+      h3: ['data-indent'],
+      h4: ['data-indent'],
+      h5: ['data-indent'],
+      h6: ['data-indent']
     };
 
     Formatter.prototype.decorate = function($el) {
@@ -310,13 +317,13 @@
           }
           if ($node.contents().length) {
             return findLinkNode($node);
-          } else if (text = $node.text() && /https?:\/\/|www\./ig.test(text)) {
+          } else if ((text = $node.text()) && /https?:\/\/|www\./ig.test(text)) {
             return linkNodes.push($node);
           }
         });
       };
       findLinkNode($el);
-      re = /(https?:\/\/|www\.)[\w\-\.\?&=\/#%]+/ig;
+      re = /(https?:\/\/|www\.)[\w\-\.\?&=\/#%:]+/ig;
       for (_i = 0, _len = linkNodes.length; _i < _len; _i++) {
         $node = linkNodes[_i];
         text = $node.text();
@@ -436,10 +443,6 @@
 
     InputManager.className = 'InputManager';
 
-    InputManager.prototype.opts = {
-      tabIndent: true
-    };
-
     function InputManager() {
       var args;
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -476,7 +479,7 @@
       this.editor.body.on('keydown', $.proxy(this._onKeyDown, this)).on('keypress', $.proxy(this._onKeyPress, this)).on('keyup', $.proxy(this._onKeyUp, this)).on('mouseup', $.proxy(this._onMouseUp, this)).on('focus', $.proxy(this._onFocus, this)).on('blur', $.proxy(this._onBlur, this)).on('paste', $.proxy(this._onPaste, this));
       if (this.editor.textarea.attr('autofocus')) {
         return setTimeout(function() {
-          return _this.editor.body.focus();
+          return _this.editor.focus();
         }, 0);
       }
     };
@@ -507,7 +510,7 @@
     };
 
     InputManager.prototype._onKeyDown = function(e) {
-      var $blockEl, $br, $prevBlockEl, metaKey, result, shortcutKey, spaceNode, spaces, _ref, _ref1,
+      var $blockEl, $br, $prevBlockEl, metaKey, result, shortcutKey, _ref, _ref1,
         _this = this;
       if (this.editor.triggerHandler(e) === false) {
         return false;
@@ -564,12 +567,12 @@
           return false;
         }
       }
-      if (e.which === 9 && (this.opts.tabIndent || $blockEl.is('pre')) && !$blockEl.is('li')) {
-        spaces = $blockEl.is('pre') ? '\u00A0\u00A0' : '\u00A0\u00A0\u00A0\u00A0';
-        spaceNode = document.createTextNode(spaces);
-        this.editor.selection.insertNode(spaceNode);
-        this.editor.trigger('valuechanged');
-        this.editor.trigger('selectionchanged');
+      if (e.which === 9) {
+        if (e.shiftKey) {
+          this.outdent();
+        } else {
+          this.indent();
+        }
         return false;
       }
       if (this._typing) {
@@ -773,42 +776,6 @@
           this.editor.selection.setRangeAtStartOf($firstChild);
           return true;
         }
-      },
-      9: {
-        li: function(e, $node) {
-          var $childList, $parent, $parentLi, tagName;
-          if (e.shiftKey) {
-            $parent = $node.parent();
-            $parentLi = $parent.parent('li');
-            if ($parentLi.length < 0) {
-              return true;
-            }
-            this.editor.selection.save();
-            if ($node.next('li').length > 0) {
-              $('<' + $parent[0].tagName + '/>').append($node.nextAll('li')).appendTo($node);
-            }
-            $node.insertAfter($parentLi);
-            if ($parent.children('li').length < 1) {
-              $parent.remove();
-            }
-            this.editor.selection.restore();
-          } else {
-            $parentLi = $node.prev('li');
-            if ($parentLi.length < 1) {
-              return true;
-            }
-            this.editor.selection.save();
-            tagName = $node.parent()[0].tagName;
-            $childList = $parentLi.children('ul, ol');
-            if ($childList.length > 0) {
-              $childList.append($node);
-            } else {
-              $('<' + tagName + '/>').append($node).appendTo($parentLi);
-            }
-            this.editor.selection.restore();
-          }
-          return true;
-        }
       }
     };
 
@@ -831,6 +798,81 @@
 
     InputManager.prototype.addShortcut = function(keys, handler) {
       return this._shortcuts[keys] = $.proxy(handler, this);
+    };
+
+    InputManager.prototype.indent = function() {
+      var $blockEl, $childList, $parentLi, indentLevel, spaceNode, tagName, _ref;
+      $blockEl = this.editor.util.closestBlockEl();
+      if (!($blockEl && $blockEl.length > 0)) {
+        return;
+      }
+      if ($blockEl.is('pre')) {
+        spaceNode = document.createTextNode('\u00A0\u00A0');
+        this.editor.selection.insertNode(spaceNode);
+      } else if ($blockEl.is('li')) {
+        $parentLi = $blockEl.prev('li');
+        if ($parentLi.length < 1) {
+          return true;
+        }
+        this.editor.selection.save();
+        tagName = $blockEl.parent()[0].tagName;
+        $childList = $parentLi.children('ul, ol');
+        if ($childList.length > 0) {
+          $childList.append($blockEl);
+        } else {
+          $('<' + tagName + '/>').append($blockEl).appendTo($parentLi);
+        }
+        this.editor.selection.restore();
+      } else if ($blockEl.is('p, h1, h2, h3, h4, h5, h6')) {
+        indentLevel = (_ref = $blockEl.attr('data-indent')) != null ? _ref : 0;
+        indentLevel = indentLevel * 1 + 1;
+        if (indentLevel > 10) {
+          indentLevel = 10;
+        }
+        $blockEl.attr('data-indent', indentLevel);
+      } else {
+        spaceNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0');
+        this.editor.selection.insertNode(spaceNode);
+      }
+      this.editor.trigger('valuechanged');
+      return this.editor.trigger('selectionchanged');
+    };
+
+    InputManager.prototype.outdent = function() {
+      var $blockEl, $parent, $parentLi, indentLevel, _ref;
+      $blockEl = this.editor.util.closestBlockEl();
+      if (!($blockEl && $blockEl.length > 0)) {
+        return;
+      }
+      if ($blockEl.is('pre')) {
+        return;
+      } else if ($blockEl.is('li')) {
+        $parent = $blockEl.parent();
+        $parentLi = $parent.parent('li');
+        if ($parentLi.length < 0) {
+          return true;
+        }
+        this.editor.selection.save();
+        if ($blockEl.next('li').length > 0) {
+          $('<' + $parent[0].tagName + '/>').append($blockEl.nextAll('li')).appendTo($blockEl);
+        }
+        $blockEl.insertAfter($parentLi);
+        if ($parent.children('li').length < 1) {
+          $parent.remove();
+        }
+        this.editor.selection.restore();
+      } else if ($blockEl.is('p, h1, h2, h3, h4, h5, h6')) {
+        indentLevel = (_ref = $blockEl.attr('data-indent')) != null ? _ref : 0;
+        indentLevel = indentLevel * 1 - 1;
+        if (indentLevel < 0) {
+          indentLevel = 0;
+        }
+        $blockEl.attr('data-indent', indentLevel);
+      } else {
+        return;
+      }
+      this.editor.trigger('valuechanged');
+      return this.editor.trigger('selectionchanged');
     };
 
     return InputManager;
@@ -998,10 +1040,10 @@
     UndoManager.prototype.caretPosition = function(caret) {
       var endContainer, endOffset, range, startContainer, startOffset;
       if (!caret) {
-        if (!this.editor.inputManager.focused) {
+        range = this.editor.selection.getRange();
+        if (!(this.editor.inputManager.focused && (range != null))) {
           return {};
         }
-        range = this.editor.selection.getRange();
         caret = {
           start: [],
           end: null,
@@ -1167,7 +1209,7 @@
       }
     };
 
-    Util.prototype.furthestBlockEl = function(node) {
+    Util.prototype.furthestNode = function(node, filter) {
       var $node, blockEl, range,
         _this = this;
       if (node == null) {
@@ -1180,13 +1222,23 @@
       }
       blockEl = $node.parentsUntil(this.editor.body).addBack();
       blockEl = blockEl.filter(function(i) {
-        return _this.isBlockNode(blockEl.eq(i));
+        var $n;
+        $n = blockEl.eq(i);
+        if ($.isFunction(filter)) {
+          return filter($n);
+        } else {
+          return $n.is(filter);
+        }
       });
       if (blockEl.length) {
         return blockEl.first();
       } else {
         return null;
       }
+    };
+
+    Util.prototype.furthestBlockEl = function(node) {
+      return this.furthestNode(node, this.isBlockNode);
     };
 
     Util.prototype.getNodeLength = function(node) {
@@ -1277,7 +1329,7 @@
         return;
       }
       if (!$.isArray(this.opts.toolbar)) {
-        this.opts.toolbar = ['bold', 'italic', 'underline', '|', 'ol', 'ul', 'blockquote', 'code', '|', 'link', 'image'];
+        this.opts.toolbar = ['bold', 'italic', 'underline', '|', 'ol', 'ul', 'blockquote', 'code', '|', 'link', 'image', '|', 'indent', 'outdent'];
       }
       this._render();
       this.list.on('click', function(e) {
@@ -1482,9 +1534,9 @@
     };
 
     Simditor.prototype._placeholder = function() {
-      var children;
+      var children, _ref1;
       children = this.body.children();
-      if (children.length === 0 || (children.length === 1 && this.util.isEmptyNode(children))) {
+      if (children.length === 0 || (children.length === 1 && this.util.isEmptyNode(children) && ((_ref1 = children.data('indent')) != null ? _ref1 : 0) < 1)) {
         return this.placeholderEl.show();
       } else {
         return this.placeholderEl.hide();
@@ -1519,6 +1571,10 @@
     };
 
     Simditor.prototype.focus = function() {
+      var $blockEl, range;
+      $blockEl = this.body.find('p, li, pre, h1, h2, h3, h4, h5, h6, td').first();
+      range = document.createRange();
+      this.selection.setRangeAtStartOf($blockEl, range);
       return this.body.focus();
     };
 
@@ -1946,6 +2002,7 @@
       }
       anotherType = this.type === 'ul' ? 'ol' : 'ul';
       if ($node.is(anotherType)) {
+        this.setActive(false);
         return true;
       } else {
         this.setActive($node.is(this.htmlTag));
@@ -1954,7 +2011,7 @@
     };
 
     ListButton.prototype.command = function(param) {
-      var $breakedEl, $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref5,
+      var $contents, $endBlock, $furthestEnd, $furthestStart, $parent, $startBlock, endLevel, endNode, getListLevel, node, range, results, startLevel, startNode, _i, _len, _ref5,
         _this = this;
       range = this.editor.selection.getRange();
       startNode = range.startContainer;
@@ -1964,27 +2021,34 @@
       this.editor.selection.save();
       range.setStartBefore($startBlock[0]);
       range.setEndAfter($endBlock[0]);
-      if ($startBlock.is('li') && $endBlock.is('li') && $startBlock.parent()[0] === $endBlock.parent()[0]) {
-        $breakedEl = $startBlock.parent();
-      }
-      $contents = $(range.extractContents());
-      if ($breakedEl != null) {
-        $contents.wrapInner('<' + $breakedEl[0].tagName + '/>');
-        if (this.editor.selection.rangeAtStartOf($breakedEl, range)) {
-          range.setEndBefore($breakedEl[0]);
-          range.collapse(false);
-          if ($breakedEl.children().length < 1) {
-            $breakedEl.remove();
+      if ($startBlock.is('li') && $endBlock.is('li')) {
+        $furthestStart = this.editor.util.furthestNode($startBlock, 'ul, ol');
+        $furthestEnd = this.editor.util.furthestNode($endBlock, 'ul, ol');
+        if ($furthestStart.is($furthestEnd)) {
+          getListLevel = function($li) {
+            var lvl;
+            lvl = 1;
+            while (!$li.parent().is($furthestStart)) {
+              lvl += 1;
+              $li = $li.parent();
+            }
+            return lvl;
+          };
+          startLevel = getListLevel($startBlock);
+          endLevel = getListLevel($endBlock);
+          if (startLevel > endLevel) {
+            $parent = $endBlock.parent();
+          } else {
+            $parent = $startBlock.parent();
           }
-        } else if (this.editor.selection.rangeAtEndOf($breakedEl, range)) {
-          range.setEndAfter($breakedEl[0]);
-          range.collapse(false);
+          range.setStartBefore($parent[0]);
+          range.setEndAfter($parent[0]);
         } else {
-          $breakedEl = this.editor.selection.breakBlockEl($breakedEl, range);
-          range.setEndBefore($breakedEl[0]);
-          range.collapse(false);
+          range.setStartBefore($furthestStart[0]);
+          range.setEndAfter($furthestEnd[0]);
         }
       }
+      $contents = $(range.extractContents());
       results = [];
       $contents.children().each(function(i, el) {
         var c, converted, _i, _len, _results;
@@ -2017,10 +2081,15 @@
       results = [];
       anotherType = this.type === 'ul' ? 'ol' : 'ul';
       if ($el.is(this.type)) {
-        $el.find('li').each(function(i, li) {
-          var block;
+        $el.children('li').each(function(i, li) {
+          var $childList, $li, block;
+          $li = $(li);
+          $childList = $li.children('ul, ol').remove();
           block = $('<p/>').append($(li).html() || _this.editor.util.phBr);
-          return results.push(block);
+          results.push(block);
+          if ($childList.length > 0) {
+            return results.push($childList);
+          }
         });
       } else if ($el.is(anotherType)) {
         block = $('<' + this.type + '/>').append($el.html());
@@ -2503,6 +2572,9 @@
         }
         return false;
       });
+      this.editor.body.on('click', '.simditor-image', function(e) {
+        return false;
+      });
       this.editor.on('selectionchanged', function() {
         return _this.popover.hide();
       });
@@ -2688,5 +2760,61 @@
   })(Popover);
 
   Simditor.Toolbar.addButton(ImageButton);
+
+  IndentButton = (function(_super) {
+    __extends(IndentButton, _super);
+
+    function IndentButton() {
+      _ref12 = IndentButton.__super__.constructor.apply(this, arguments);
+      return _ref12;
+    }
+
+    IndentButton.prototype.name = 'indent';
+
+    IndentButton.prototype.icon = 'indent';
+
+    IndentButton.prototype.title = '向右缩进';
+
+    IndentButton.prototype.status = function($node) {
+      return true;
+    };
+
+    IndentButton.prototype.command = function() {
+      return this.editor.inputManager.indent();
+    };
+
+    return IndentButton;
+
+  })(Button);
+
+  Simditor.Toolbar.addButton(IndentButton);
+
+  OutdentButton = (function(_super) {
+    __extends(OutdentButton, _super);
+
+    function OutdentButton() {
+      _ref13 = OutdentButton.__super__.constructor.apply(this, arguments);
+      return _ref13;
+    }
+
+    OutdentButton.prototype.name = 'outdent';
+
+    OutdentButton.prototype.icon = 'outdent';
+
+    OutdentButton.prototype.title = '向左缩进';
+
+    OutdentButton.prototype.status = function($node) {
+      return true;
+    };
+
+    OutdentButton.prototype.command = function() {
+      return this.editor.inputManager.outdent();
+    };
+
+    return OutdentButton;
+
+  })(Button);
+
+  Simditor.Toolbar.addButton(OutdentButton);
 
 }).call(this);
