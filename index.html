@@ -49,10 +49,11 @@
 &lt;link media="all" rel="stylesheet" type="text/css" href="styles/simditor.css" /&gt;
 
 &lt;script type="text/javascript" src="scripts/jquery-2.0.3.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="scripts/module.js"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="scripts/uploader.js"&gt;&lt;/script&gt;
 &lt;script type="text/javascript" src="scripts/simditor.js"&gt;&lt;/script&gt;
 </code></pre>
 
-<p>Notice: <code>font-awesome.css</code> is optional which is used to provide icon image for our toolbar button. You can customize the style of editor as you like by modifying <code>simditor.css</code> or writing your own to override it. jQuery 2.0+ is required.</p>
 
 <p>Then initialize the editor in your script:</p>
 
@@ -60,6 +61,19 @@
   textarea: $('#textarea-id')
 });
 </code></pre>
+
+<h3>
+<a name="dependence" class="anchor" href="#dependence"><span class="octicon octicon-link"></span></a>Dependence</h3>
+
+<p>
+Simditor is built on jQuery 2.0+ and <a href="https://github.com/mycolorway/simple-module">Mycolorway Simple Module</a> which is a CoffeeScript base class for component development.
+</p>
+<p>
+<a href="https://github.com/FortAwesome/Font-Awesome">FontAwesome</a> is also required if you don't want to customize your own toolbar button.
+</p>
+<p>
+<a href="https://github.com/mycolorway/simple-uploader">Mycolorway Simple Uploader</a> is optional for local image uploading.
+</p>
 
 <h3>
 <a name="documentation" class="anchor" href="#documentation"><span class="octicon octicon-link"></span></a>Documentation</h3>
