@@ -1,5 +1,5 @@
 (function() {
-  var BlockquoteButton, BoldButton, Button, CodeButton, CodePopover, Formatter, ImageButton, ImagePopover, IndentButton, InputManager, ItalicButton, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9,
+  var BlockquoteButton, BoldButton, Button, CodeButton, CodePopover, Formatter, ImageButton, ImagePopover, IndentButton, InputManager, ItalicButton, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, TitleButton, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util, _ref, _ref1, _ref10, _ref11, _ref12, _ref13, _ref14, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __slice = [].slice,
@@ -273,7 +273,7 @@
       });
     };
 
-    Formatter.prototype._allowedTags = ['br', 'a', 'img', 'b', 'strong', 'i', 'u', 'p', 'ul', 'ol', 'li', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    Formatter.prototype._allowedTags = ['br', 'a', 'img', 'b', 'strong', 'i', 'u', 'p', 'ul', 'ol', 'li', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4'];
 
     Formatter.prototype._allowedAttributes = {
       img: ['src', 'alt', 'width', 'height', 'data-origin-src', 'data-origin-size', 'data-origin-name'],
@@ -283,9 +283,7 @@
       h1: ['data-indent'],
       h2: ['data-indent'],
       h3: ['data-indent'],
-      h4: ['data-indent'],
-      h5: ['data-indent'],
-      h6: ['data-indent']
+      h4: ['data-indent']
     };
 
     Formatter.prototype.decorate = function($el) {
@@ -382,7 +380,7 @@
       var $node, allowedAttributes, attr, contents, isDecoration, n, text, _i, _j, _len, _len1, _ref, _ref1;
       $node = $(node);
       if ($node[0].nodeType === 3) {
-        text = $node.text().replace(/(\r\n|\n|\r)/gm, '<br/>');
+        text = $node.text().replace(/(\r\n|\n|\r)/gm, '');
         $node.replaceWith($('<div/>').html(text).contents());
         return;
       }
@@ -438,7 +436,7 @@
           if (contents.length > 0) {
             result += _this.clearHtml(contents);
           }
-          if (lineBreak && $node.is('br, p, div, li, tr, pre, address, artticle, aside, dl, figcaption, footer, h1, h2, h3, h4, h5, h6, header')) {
+          if (lineBreak && $node.is('br, p, div, li, tr, pre, address, artticle, aside, dl, figcaption, footer, h1, h2, h3, h4, header')) {
             return result += '\n';
           }
         }
@@ -767,6 +765,15 @@
             } else if (imgEl.is('img[src^="webkit-fake-url://"]')) {
               return;
             }
+          } else if ($blockEl.is('p') && _this.editor.util.isEmptyNode($blockEl)) {
+            $blockEl.replaceWith(pasteContent);
+            _this.editor.selection.setRangeAtEndOf(pasteContent, range);
+          } else if (pasteContent.is('ul, ol') && $blockEl.is('li')) {
+            $blockEl.parent().after(pasteContent);
+            _this.editor.selection.setRangeAtEndOf(pasteContent, range);
+          } else {
+            $blockEl.after(pasteContent);
+            _this.editor.selection.setRangeAtEndOf(pasteContent, range);
           }
         } else {
           if ($blockEl.is('li')) {
@@ -791,25 +798,36 @@
     InputManager.prototype._inputHandlers = {
       13: {
         li: function(e, $node) {
-          var listEl, newBlockEl, newLi, range;
+          var listEl, newBlockEl, newListEl, range;
           if (!this.editor.util.isEmptyNode($node)) {
             return;
           }
           e.preventDefault();
           range = this.editor.selection.getRange();
-          if (!$node.next('li').length) {
-            listEl = $node.parent();
-            newBlockEl = $('<p/>').append(this.editor.util.phBr).insertAfter(listEl);
-            if ($node.siblings('li').length) {
-              $node.remove();
+          listEl = $node.parent();
+          if ($node.next('li').length > 0) {
+            if (listEl.parent('li').length > 0) {
+              newBlockEl = $('<li/>').append(this.editor.util.phBr).insertAfter(listEl.parent('li'));
+              newListEl = $('<' + listEl[0].tagName + '/>').append($node.nextAll('li'));
+              newBlockEl.append(newListEl);
             } else {
-              listEl.remove();
+              newBlockEl = $('<p/>').append(this.editor.util.phBr).insertAfter(listEl);
+              newListEl = $('<' + listEl[0].tagName + '/>').append($node.nextAll('li'));
+              newBlockEl.after(newListEl);
             }
-            range.setEnd(newBlockEl[0], 0);
           } else {
-            newLi = $('<li/>').append(this.editor.util.phBr).insertAfter($node);
-            range.setEnd(newLi[0], 0);
+            if (listEl.parent('li').length > 0) {
+              newBlockEl = $('<li/>').append(this.editor.util.phBr).insertAfter(listEl.parent('li'));
+            } else {
+              newBlockEl = $('<p/>').append(this.editor.util.phBr).insertAfter(listEl);
+            }
           }
+          if ($node.prev('li').length) {
+            $node.remove();
+          } else {
+            listEl.remove();
+          }
+          range.setEnd(newBlockEl[0], 0);
           range.collapse(false);
           this.editor.selection.selectRange(range);
           return true;
@@ -845,6 +863,45 @@
         }
       },
       8: {
+        li: function(e, $node) {
+          var $br, $childList, $newLi, $prevChildList, $prevNode, $textNode, range, text,
+            _this = this;
+          $childList = $node.children('ul, ol');
+          $prevNode = $node.prev('li');
+          if (!($childList.length > 0 && $prevNode.length > 0)) {
+            return;
+          }
+          text = '';
+          $textNode = null;
+          $node.contents().each(function(i, n) {
+            if (n.nodeType === 3 && n.nodeValue) {
+              text += n.nodeValue;
+              return $textNode = $(n);
+            }
+          });
+          if ($textNode && text.length === 1 && this.editor.util.browser.firefox && !$textNode.next('br').length) {
+            $br = $(this.editor.util.phBr).insertAfter($textNode);
+            $textNode.remove();
+            this.editor.selection.setRangeBefore($br);
+            return true;
+          } else if (text.length > 0) {
+            return;
+          }
+          range = document.createRange();
+          $prevChildList = $prevNode.children('ul, ol');
+          if ($prevChildList.length > 0) {
+            $newLi = $('<li/>').append(this.editor.util.phBr).appendTo($prevChildList);
+            $prevChildList.append($childList.children('li'));
+            $node.remove();
+            this.editor.selection.setRangeAtEndOf($newLi, range);
+          } else {
+            this.editor.selection.setRangeAtEndOf($prevNode, range);
+            $prevNode.append($childList);
+            $node.remove();
+            this.editor.selection.selectRange(range);
+          }
+          return true;
+        },
         pre: function(e, $node) {
           var $newNode, codeStr;
           if (!this.editor.selection.rangeAtStartOf($node)) {
@@ -912,7 +969,7 @@
           $('<' + tagName + '/>').append($blockEl).appendTo($parentLi);
         }
         this.editor.selection.restore();
-      } else if ($blockEl.is('p, h1, h2, h3, h4, h5, h6')) {
+      } else if ($blockEl.is('p, h1, h2, h3, h4')) {
         indentLevel = (_ref = $blockEl.attr('data-indent')) != null ? _ref : 0;
         indentLevel = indentLevel * 1 + 1;
         if (indentLevel > 10) {
@@ -954,7 +1011,7 @@
           $parent.remove();
         }
         this.editor.selection.restore();
-      } else if ($blockEl.is('p, h1, h2, h3, h4, h5, h6')) {
+      } else if ($blockEl.is('p, h1, h2, h3, h4')) {
         indentLevel = (_ref = $blockEl.attr('data-indent')) != null ? _ref : 0;
         indentLevel = indentLevel * 1 - 1;
         if (indentLevel < 0) {
@@ -1285,7 +1342,7 @@
       if (!node || node.nodeType === 3) {
         return false;
       }
-      return /^(div|p|ul|ol|li|blockquote|hr|pre|h1|h2|h3|h4|h5|h6|table)$/.test(node.nodeName.toLowerCase());
+      return /^(div|p|ul|ol|li|blockquote|hr|pre|h1|h2|h3|h4|table)$/.test(node.nodeName.toLowerCase());
     };
 
     Util.prototype.closestBlockEl = function(node) {
@@ -1466,12 +1523,13 @@
         return _this.toolbarStatus();
       });
       return this.editor.on('destroy', function() {
-        return _this._buttons.length = 0;
+        return _this.buttons.length = 0;
       });
     };
 
     Toolbar.prototype._render = function() {
       var name, _i, _len, _ref, _results;
+      this.buttons = [];
       this.wrapper = $(this._tpl.wrapper).prependTo(this.editor.wrapper);
       this.list = this.wrapper.find('ul');
       this.editor.wrapper.addClass('toolbar-enabled');
@@ -1487,7 +1545,7 @@
           throw new Error('simditor: invalid toolbar button "' + name + '"');
           continue;
         }
-        _results.push(this._buttons.push(new this.constructor.buttons[name](this.editor)));
+        _results.push(this.buttons.push(new this.constructor.buttons[name](this.editor)));
       }
       return _results;
     };
@@ -1498,7 +1556,7 @@
       if (!this.editor.inputManager.focused) {
         return;
       }
-      buttons = this._buttons.slice(0);
+      buttons = this.buttons.slice(0);
       return this.editor.util.traverseUp(function(node) {
         var button, i, removeButtons, _i, _j, _len, _len1;
         removeButtons = [];
@@ -1527,8 +1585,6 @@
       button = this.list.find('.toolbar-item-' + name).data('button');
       return button != null ? button : null;
     };
-
-    Toolbar.prototype._buttons = [];
 
     Toolbar.addButton = function(btn) {
       return this.buttons[btn.prototype.name] = btn;
@@ -1679,7 +1735,7 @@
 
     Simditor.prototype.focus = function() {
       var $blockEl, range;
-      $blockEl = this.body.find('p, li, pre, h1, h2, h3, h4, h5, h6, td').first();
+      $blockEl = this.body.find('p, li, pre, h1, h2, h3, h4, td').first();
       range = document.createRange();
       this.selection.setRangeAtStartOf($blockEl, range);
       return this.body.focus();
@@ -1759,14 +1815,13 @@
           return;
         }
         if (_this.menu) {
-          _this.editor.toolbar.wrapper.toggleClass('menu-on');
+          return _this.wrapper.toggleClass('menu-on');
         } else {
-
+          param = _this.el.data('param');
+          return _this.command(param);
         }
-        param = _this.el.data('param');
-        return _this.command(param);
       });
-      this.editor.toolbar.list.on('mousedown', 'a.menu-item', function(e) {
+      this.wrapper.on('mousedown', 'a.menu-item', function(e) {
         var btn, param;
         e.preventDefault();
         btn = $(e.currentTarget);
@@ -1775,7 +1830,8 @@
         }
         _this.editor.toolbar.wrapper.removeClass('menu-on');
         param = btn.data('param');
-        return _this.command(param);
+        _this.command(param);
+        return _this.wrapper.removeClass('menu-on');
       });
       this.editor.on('blur', function() {
         _this.setActive(false);
@@ -1801,7 +1857,7 @@
     };
 
     Button.prototype.renderMenu = function() {
-      var $menuBtntnEl, $menuItemEl, menuItem, _i, _len, _ref1, _results;
+      var $menuBtntnEl, $menuItemEl, menuItem, _i, _len, _ref1, _ref2, _results;
       if (!$.isArray(this.menu)) {
         return;
       }
@@ -1816,8 +1872,9 @@
         }
         $menuItemEl = $(this._tpl.menuItem).appendTo(this.menuEl);
         _results.push($menuBtntnEl = $menuItemEl.find('a.menu-item').attr({
-          'title': menuItem.title
-        }).addClass('menu-item-' + menuItem.name).data('param', menuItem.param).find('span').text(menuItem.text));
+          'title': (_ref2 = menuItem.title) != null ? _ref2 : menuItem.text,
+          'data-param': menuItem.param
+        }).addClass('menu-item-' + menuItem.name).find('span').text(menuItem.text));
       }
       return _results;
     };
@@ -1958,12 +2015,124 @@
 
   })(Module);
 
+  TitleButton = (function(_super) {
+    __extends(TitleButton, _super);
+
+    function TitleButton() {
+      _ref1 = TitleButton.__super__.constructor.apply(this, arguments);
+      return _ref1;
+    }
+
+    TitleButton.prototype.name = 'title';
+
+    TitleButton.prototype.title = '加粗文字';
+
+    TitleButton.prototype.htmlTag = 'h1, h2, h3, h4';
+
+    TitleButton.prototype.disableTag = 'pre';
+
+    TitleButton.prototype.menu = [
+      {
+        name: 'normal',
+        text: '普通文本',
+        param: 'p'
+      }, '|', {
+        name: 'h1',
+        text: '标题 1',
+        param: 'h1'
+      }, {
+        name: 'h2',
+        text: '标题 2',
+        param: 'h2'
+      }, {
+        name: 'h3',
+        text: '标题 3',
+        param: 'h3'
+      }
+    ];
+
+    TitleButton.prototype.setActive = function(active, param) {
+      this.active = active;
+      if (active) {
+        return this.el.addClass('active active-' + param);
+      } else {
+        return this.el.removeClass('active active-p active-h1 active-h2 active-h3');
+      }
+    };
+
+    TitleButton.prototype.status = function($node) {
+      var param, _ref2;
+      if ($node != null) {
+        this.setDisabled($node.is(this.disableTag));
+      }
+      if (this.disabled) {
+        return true;
+      }
+      if ($node != null) {
+        param = (_ref2 = $node[0].tagName) != null ? _ref2.toLowerCase() : void 0;
+        this.setActive($node.is(this.htmlTag), param);
+      }
+      return this.active;
+    };
+
+    TitleButton.prototype.command = function(param) {
+      var $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref2,
+        _this = this;
+      range = this.editor.selection.getRange();
+      startNode = range.startContainer;
+      endNode = range.endContainer;
+      $startBlock = this.editor.util.closestBlockEl(startNode);
+      $endBlock = this.editor.util.closestBlockEl(endNode);
+      this.editor.selection.save();
+      range.setStartBefore($startBlock[0]);
+      range.setEndAfter($endBlock[0]);
+      $contents = $(range.extractContents());
+      results = [];
+      $contents.children().each(function(i, el) {
+        var c, converted, _i, _len, _results;
+        converted = _this._convertEl(el, param);
+        _results = [];
+        for (_i = 0, _len = converted.length; _i < _len; _i++) {
+          c = converted[_i];
+          _results.push(results.push(c));
+        }
+        return _results;
+      });
+      _ref2 = results.reverse();
+      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+        node = _ref2[_i];
+        range.insertNode(node[0]);
+      }
+      this.editor.selection.restore();
+      this.editor.trigger('valuechanged');
+      return this.editor.trigger('selectionchanged');
+    };
+
+    TitleButton.prototype._convertEl = function(el, param) {
+      var $block, $el, results;
+      $el = $(el);
+      results = [];
+      if ($el.is(param)) {
+        results.push($el);
+      } else {
+        $block = $('<' + param + '/>').append($el.contents());
+        results.push($block);
+      }
+      return results;
+    };
+
+    return TitleButton;
+
+  })(Button);
+
+  Simditor.Toolbar.addButton(TitleButton);
+
   BoldButton = (function(_super) {
     __extends(BoldButton, _super);
 
     function BoldButton() {
-      _ref1 = BoldButton.__super__.constructor.apply(this, arguments);
-      return _ref1;
+      _ref2 = BoldButton.__super__.constructor.apply(this, arguments);
+      return _ref2;
     }
 
     BoldButton.prototype.name = 'bold';
@@ -2007,8 +2176,8 @@
     __extends(ItalicButton, _super);
 
     function ItalicButton() {
-      _ref2 = ItalicButton.__super__.constructor.apply(this, arguments);
-      return _ref2;
+      _ref3 = ItalicButton.__super__.constructor.apply(this, arguments);
+      return _ref3;
     }
 
     ItalicButton.prototype.name = 'italic';
@@ -2052,8 +2221,8 @@
     __extends(UnderlineButton, _super);
 
     function UnderlineButton() {
-      _ref3 = UnderlineButton.__super__.constructor.apply(this, arguments);
-      return _ref3;
+      _ref4 = UnderlineButton.__super__.constructor.apply(this, arguments);
+      return _ref4;
     }
 
     UnderlineButton.prototype.name = 'underline';
@@ -2097,8 +2266,8 @@
     __extends(ListButton, _super);
 
     function ListButton() {
-      _ref4 = ListButton.__super__.constructor.apply(this, arguments);
-      return _ref4;
+      _ref5 = ListButton.__super__.constructor.apply(this, arguments);
+      return _ref5;
     }
 
     ListButton.prototype.type = '';
@@ -2127,7 +2296,7 @@
     };
 
     ListButton.prototype.command = function(param) {
-      var $contents, $endBlock, $furthestEnd, $furthestStart, $parent, $startBlock, endLevel, endNode, getListLevel, node, range, results, startLevel, startNode, _i, _len, _ref5,
+      var $contents, $endBlock, $furthestEnd, $furthestStart, $parent, $startBlock, endLevel, endNode, getListLevel, node, range, results, startLevel, startNode, _i, _len, _ref6,
         _this = this;
       range = this.editor.selection.getRange();
       startNode = range.startContainer;
@@ -2180,9 +2349,9 @@
         }
         return _results;
       });
-      _ref5 = results.reverse();
-      for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-        node = _ref5[_i];
+      _ref6 = results.reverse();
+      for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+        node = _ref6[_i];
         range.insertNode(node[0]);
       }
       this.editor.selection.restore();
@@ -2191,7 +2360,7 @@
     };
 
     ListButton.prototype._convertEl = function(el) {
-      var $el, anotherType, block, child, children, results, _i, _len, _ref5,
+      var $el, anotherType, block, child, children, results, _i, _len, _ref6,
         _this = this;
       $el = $(el);
       results = [];
@@ -2211,9 +2380,9 @@
         block = $('<' + this.type + '/>').append($el.html());
         results.push(block);
       } else if ($el.is('blockquote')) {
-        _ref5 = $el.children().get();
-        for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
-          child = _ref5[_i];
+        _ref6 = $el.children().get();
+        for (_i = 0, _len = _ref6.length; _i < _len; _i++) {
+          child = _ref6[_i];
           children = this._convertEl(child);
         }
         $.merge(results, children);
@@ -2235,8 +2404,8 @@
     __extends(OrderListButton, _super);
 
     function OrderListButton() {
-      _ref5 = OrderListButton.__super__.constructor.apply(this, arguments);
-      return _ref5;
+      _ref6 = OrderListButton.__super__.constructor.apply(this, arguments);
+      return _ref6;
     }
 
     OrderListButton.prototype.type = 'ol';
@@ -2257,8 +2426,8 @@
     __extends(UnorderListButton, _super);
 
     function UnorderListButton() {
-      _ref6 = UnorderListButton.__super__.constructor.apply(this, arguments);
-      return _ref6;
+      _ref7 = UnorderListButton.__super__.constructor.apply(this, arguments);
+      return _ref7;
     }
 
     UnorderListButton.prototype.type = 'ul';
@@ -2283,8 +2452,8 @@
     __extends(BlockquoteButton, _super);
 
     function BlockquoteButton() {
-      _ref7 = BlockquoteButton.__super__.constructor.apply(this, arguments);
-      return _ref7;
+      _ref8 = BlockquoteButton.__super__.constructor.apply(this, arguments);
+      return _ref8;
     }
 
     BlockquoteButton.prototype.name = 'blockquote';
@@ -2298,7 +2467,7 @@
     BlockquoteButton.prototype.disableTag = 'pre';
 
     BlockquoteButton.prototype.command = function() {
-      var $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref8,
+      var $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref9,
         _this = this;
       range = this.editor.selection.getRange();
       startNode = range.startContainer;
@@ -2324,9 +2493,9 @@
         }
         return _results;
       });
-      _ref8 = results.reverse();
-      for (_i = 0, _len = _ref8.length; _i < _len; _i++) {
-        node = _ref8[_i];
+      _ref9 = results.reverse();
+      for (_i = 0, _len = _ref9.length; _i < _len; _i++) {
+        node = _ref9[_i];
         range.insertNode(node[0]);
       }
       this.editor.selection.restore();
@@ -2360,8 +2529,8 @@
     __extends(CodeButton, _super);
 
     function CodeButton() {
-      _ref8 = CodeButton.__super__.constructor.apply(this, arguments);
-      return _ref8;
+      _ref9 = CodeButton.__super__.constructor.apply(this, arguments);
+      return _ref9;
     }
 
     CodeButton.prototype.name = 'code';
@@ -2393,7 +2562,7 @@
     };
 
     CodeButton.prototype.command = function() {
-      var $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref9,
+      var $contents, $endBlock, $startBlock, endNode, node, range, results, startNode, _i, _len, _ref10,
         _this = this;
       range = this.editor.selection.getRange();
       startNode = range.startContainer;
@@ -2418,9 +2587,9 @@
         }
         return _results;
       });
-      _ref9 = results.reverse();
-      for (_i = 0, _len = _ref9.length; _i < _len; _i++) {
-        node = _ref9[_i];
+      _ref10 = results.reverse();
+      for (_i = 0, _len = _ref10.length; _i < _len; _i++) {
+        node = _ref10[_i];
         range.insertNode(node[0]);
       }
       this.editor.selection.setRangeAtEndOf(results[0]);
@@ -2455,8 +2624,8 @@
     __extends(CodePopover, _super);
 
     function CodePopover() {
-      _ref9 = CodePopover.__super__.constructor.apply(this, arguments);
-      return _ref9;
+      _ref10 = CodePopover.__super__.constructor.apply(this, arguments);
+      return _ref10;
     }
 
     CodePopover.prototype._tpl = "<div class=\"code-settings\">\n  <div class=\"settings-field\">\n    <select class=\"select-lang\">\n      <option value=\"-1\">选择程序语言</option>\n      <option value=\"c++\">C++</option>\n      <option value=\"css\">CSS</option>\n      <option value=\"coffeeScript\">CoffeeScript</option>\n      <option value=\"html\">Html,XML</option>\n      <option value=\"json\">JSON</option>\n      <option value=\"java\">Java</option>\n      <option value=\"js\">JavaScript</option>\n      <option value=\"markdown\">Markdown</option>\n      <option value=\"oc\">Objective C</option>\n      <option value=\"php\">PHP</option>\n      <option value=\"perl\">Perl</option>\n      <option value=\"python\">Python</option>\n      <option value=\"ruby\">Ruby</option>\n      <option value=\"sql\">SQL</option>\n    </select>\n  </div>\n</div>";
@@ -2497,8 +2666,8 @@
     __extends(LinkButton, _super);
 
     function LinkButton() {
-      _ref10 = LinkButton.__super__.constructor.apply(this, arguments);
-      return _ref10;
+      _ref11 = LinkButton.__super__.constructor.apply(this, arguments);
+      return _ref11;
     }
 
     LinkButton.prototype.name = 'link';
@@ -2580,8 +2749,8 @@
     __extends(LinkPopover, _super);
 
     function LinkPopover() {
-      _ref11 = LinkPopover.__super__.constructor.apply(this, arguments);
-      return _ref11;
+      _ref12 = LinkPopover.__super__.constructor.apply(this, arguments);
+      return _ref12;
     }
 
     LinkPopover.prototype._tpl = "<div class=\"link-settings\">\n  <div class=\"settings-field\">\n    <label>文本</label>\n    <input class=\"link-text\" type=\"text\"/>\n    <a class=\"btn-unlink\" href=\"javascript:;\" title=\"取消链接\" tabindex=\"-1\"><span class=\"fa fa-unlink\"></span></a>\n  </div>\n  <div class=\"settings-field\">\n    <label>链接</label>\n    <input class=\"link-url\" type=\"text\"/>\n  </div>\n</div>";
@@ -2702,7 +2871,9 @@
         return false;
       });
       this.editor.on('selectionchanged', function() {
-        return _this.popover.hide();
+        if (_this.popover.active) {
+          return _this.popover.hide();
+        }
       });
       this.editor.body.on('keydown', '.simditor-image', function(e) {
         if (e.which !== 8) {
@@ -2891,8 +3062,8 @@
     __extends(IndentButton, _super);
 
     function IndentButton() {
-      _ref12 = IndentButton.__super__.constructor.apply(this, arguments);
-      return _ref12;
+      _ref13 = IndentButton.__super__.constructor.apply(this, arguments);
+      return _ref13;
     }
 
     IndentButton.prototype.name = 'indent';
@@ -2919,8 +3090,8 @@
     __extends(OutdentButton, _super);
 
     function OutdentButton() {
-      _ref13 = OutdentButton.__super__.constructor.apply(this, arguments);
-      return _ref13;
+      _ref14 = OutdentButton.__super__.constructor.apply(this, arguments);
+      return _ref14;
     }
 
     OutdentButton.prototype.name = 'outdent';
