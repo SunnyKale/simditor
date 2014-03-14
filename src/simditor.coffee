@@ -2501,26 +2501,19 @@ class ImageButton extends Button
     img = new Image()
 
     img.onload = =>
-      width = img.width
-      height = img.height
-      if width > @maxWidth
-        height = @maxWidth * height / width
-        width = @maxWidth
-      if height > @maxHeight
-        width = @maxHeight * width / height
-        height = @maxHeight
+      imageSize = @limitImage img.width, img.height
 
       $img.attr({
         src: src,
-        width: width,
-        height: height,
+        width: imageSize.width,
+        height: imageSize.height,
         'data-origin-name': src,
         'data-origin-src': src,
-        'data-origin-size': width + ',' + height
+        'data-origin-size': img.width + ',' + img.height
       })
 
-      $wrapper.width(width)
-        .height(height)
+      $wrapper.width(imageSize.width)
+        .height(imageSize.height)
 
       callback(true)
 
@@ -2558,6 +2551,33 @@ class ImageButton extends Button
     @decorate $img
     $img
 
+  resizeImage: ($target, width, height) ->
+    $img = $target.find('img')
+    imageSize = @limitImage width, height
+
+    $img.attr({
+      width: imageSize.width,
+      height: imageSize.height
+    })
+
+    $target.css({
+      width: imageSize.width,
+      height: imageSize.height
+    })
+
+    @popover.widthEl.val imageSize.width
+    @popover.heightEl.val imageSize.height
+
+  limitImage: (width, height) ->
+    if width > @maxWidth
+      height = @maxWidth * height / width
+      width = @maxWidth
+    if height > @maxHeight
+      width = @maxHeight * width / height
+      height = @maxHeight
+
+    { width: width, height: height }
+
   command: () ->
     $img = @createImage()
 
@@ -2582,6 +2602,12 @@ class ImagePopover extends Popover
           <input type="file" title="上传图片" name="upload_file" accept="image/*">
         </a>
       </div>
+      <div class="settings-field">
+        <label>图片尺寸</label>
+        <input class="image-width" type="text"/>
+        <span class="multi"> x </span>
+        <input class="image-height" type="text"/>
+      </div>
     </div>
   """
 
@@ -2596,6 +2622,8 @@ class ImagePopover extends Popover
     @el.addClass('image-popover')
       .append(@_tpl)
     @srcEl = @el.find '.image-src'
+    @widthEl = @el.find '.image-width'
+    @heightEl = @el.find '.image-height'
 
     @srcEl.on 'keyup', (e) =>
       return if e.which == 13
@@ -2618,6 +2646,20 @@ class ImagePopover extends Popover
         @srcEl.blur()
         @target.removeClass('selected')
         @hide()
+
+    @widthEl.on 'input propertychange', (e) =>
+      $img = @target.find('img')
+      width = parseInt @widthEl.val() or 0
+      if typeof width is 'number'
+        height = width * $img.height() / $img.width()
+        @button.resizeImage @target, width, height
+
+    @heightEl.on 'input propertychange', (e) =>
+      $img = @target.find('img')
+      height = parseInt @heightEl.val() or 0
+      if typeof height is 'number'
+        width = height * $img.width() / $img.height()
+        @button.resizeImage @target, width, height
 
     @_initUploader()
 
@@ -2679,14 +2721,16 @@ class ImagePopover extends Popover
       @button.loadImage $img, result.file_path, () =>
         @target.find(".mask, .simditor-image-progress-bar").remove()
         @srcEl.val result.file_path
+        @widthEl.val $img.width()
+        @heightEl.val $img.height()
         @editor.trigger 'valuechanged'
 
     @editor.uploader.on 'uploaderror', (e, file, xhr) =>
       return if xhr.statusText == 'abort'
 
       $img = @target.find("img")
-      @target.find(".mask, .simditor-image-progress-bar").remove()
       @button.loadImage $img, @button.defaultImage, =>
+        @target.find(".mask, .simditor-image-progress-bar").remove()
         @editor.trigger 'valuechanged'
 
       if xhr.responseText
@@ -2706,6 +2750,8 @@ class ImagePopover extends Popover
     super args...
     $img = @target.find('img')
     @srcEl.val $img.attr('src')
+    @widthEl.val $img.width()
+    @heightEl.val $img.height()
 
 
 Simditor.Toolbar.addButton(ImageButton)

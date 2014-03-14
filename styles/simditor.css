@@ -305,6 +305,15 @@
   box-sizing: border-box;
   font-size: 12px;
 }
+.simditor .simditor-popover .settings-field input.image-width,
+.simditor .simditor-popover .settings-field input.image-height {
+  width: 92px;
+}
+.simditor .simditor-popover .settings-field .multi {
+  width: 10px;
+  text-align: center;
+  display: inline-block;
+}
 .simditor .simditor-popover.link-popover .btn-unlink, .simditor .simditor-popover.image-popover .btn-upload {
   margin: 0 0 0 5px;
   color: #333333;

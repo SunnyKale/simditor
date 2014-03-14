@@ -372,6 +372,17 @@
 				box-sizing: border-box;
 				font-size: 12px;
 			}
+
+			input.image-width,
+			input.image-height {
+				width: 92px;
+			}
+
+			.multi {
+				width: 10px;
+				text-align: center;
+				display: inline-block;
+			}
 		}
 
 		&.link-popover .btn-unlink,
