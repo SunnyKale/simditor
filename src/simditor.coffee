@@ -2640,10 +2640,10 @@ class ImagePopover extends Popover
         @timer = null
       , 200
 
-    @srcEl.on 'keydown', (e) =>
+    @el.find('input:text').on 'keydown', (e) =>
       if e.which == 13 or e.which == 27 or e.which == 9
         e.preventDefault()
-        @srcEl.blur()
+        $(e.currentTarget).blur()
         @target.removeClass('selected')
         @hide()
 
