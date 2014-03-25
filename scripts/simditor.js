@@ -894,14 +894,17 @@
         return true;
       });
       this.editor.inputManager.addKeystrokeHandler('13', 'li', function(e, $node) {
-        var listEl, newBlockEl, newListEl, range;
-        if (!_this.editor.util.isEmptyNode($node)) {
+        var $cloneNode, listEl, newBlockEl, newListEl;
+        $cloneNode = $node.clone();
+        $cloneNode.find('ul, ol').remove();
+        if (!(_this.editor.util.isEmptyNode($cloneNode) && $node.is(_this.editor.util.closestBlockEl()))) {
           return;
         }
-        e.preventDefault();
-        range = _this.editor.selection.getRange();
         listEl = $node.parent();
         if ($node.next('li').length > 0) {
+          if (!_this.editor.util.isEmptyNode($node)) {
+            return;
+          }
           if (listEl.parent('li').length > 0) {
             newBlockEl = $('<li/>').append(_this.editor.util.phBr).insertAfter(listEl.parent('li'));
             newListEl = $('<' + listEl[0].tagName + '/>').append($node.nextAll('li'));
@@ -913,9 +916,17 @@
           }
         } else {
           if (listEl.parent('li').length > 0) {
-            newBlockEl = $('<li/>').append(_this.editor.util.phBr).insertAfter(listEl.parent('li'));
+            newBlockEl = $('<li/>').insertAfter(listEl.parent('li'));
+            if ($node.contents().length > 0) {
+              newBlockEl.append($node.contents());
+            } else {
+              newBlockEl.append(_this.editor.util.phBr);
+            }
           } else {
             newBlockEl = $('<p/>').append(_this.editor.util.phBr).insertAfter(listEl);
+            if ($node.children('ul, ol').length > 0) {
+              newBlockEl.after($node.children('ul, ol'));
+            }
           }
         }
         if ($node.prev('li').length) {
@@ -923,9 +934,7 @@
         } else {
           listEl.remove();
         }
-        range.setEnd(newBlockEl[0], 0);
-        range.collapse(false);
-        _this.editor.selection.selectRange(range);
+        _this.editor.selection.setRangeAtStartOf(newBlockEl);
         return true;
       });
       this.editor.inputManager.addKeystrokeHandler('13', 'pre', function(e, $node) {
@@ -3613,19 +3622,18 @@
     }
 
     TableButton.prototype.initResize = function($table) {
-      var $colgroup, $resizeHandle, $wrapper, tableWidth,
+      var $colgroup, $resizeHandle, $wrapper,
         _this = this;
       $wrapper = $table.parent('.simditor-table');
       $colgroup = $table.find('colgroup');
       if ($colgroup.length < 1) {
         $colgroup = $('<colgroup/>').prependTo($table);
-        tableWidth = $table.width();
         $table.find('tr:first td').each(function(i, td) {
           var $col;
-          $col = $('<col/>').appendTo($colgroup);
-          return $col.attr('width', ($(td).outerWidth() / tableWidth * 100) + '%');
+          return $col = $('<col/>').appendTo($colgroup);
         });
       }
+      this.refreshTableWidth($table);
       $resizeHandle = $('<div class="resize-handle" contenteditable="false"></div>').appendTo($wrapper);
       $wrapper.on('mousemove', 'td', function(e) {
         var $col, $td, index, x, _ref18, _ref19;
@@ -3657,7 +3665,7 @@
         return $resizeHandle.hide();
       });
       return $wrapper.on('mousedown', '.resize-handle', function(e) {
-        var $handle, $leftCol, $leftTd, $rightCol, $rightTd, minWidth, startHandleLeft, startLeftWidth, startRightWidth, startX;
+        var $handle, $leftCol, $leftTd, $rightCol, $rightTd, minWidth, startHandleLeft, startLeftWidth, startRightWidth, startX, tableWidth;
         $handle = $(e.currentTarget);
         $leftTd = $handle.data('td');
         $leftCol = $handle.data('col');
@@ -3770,6 +3778,18 @@
       return $table;
     };
 
+    TableButton.prototype.refreshTableWidth = function($table) {
+      var cols, tableWidth,
+        _this = this;
+      tableWidth = $table.width();
+      cols = $table.find('col');
+      return $table.find('tr:first td').each(function(i, td) {
+        var $col;
+        $col = cols.eq(i);
+        return $col.attr('width', ($(td).outerWidth() / tableWidth * 100) + '%');
+      });
+    };
+
     TableButton.prototype.setActive = function(active) {
       TableButton.__super__.setActive.call(this, active);
       if (active) {
@@ -3835,12 +3855,13 @@
         $table.find('tr').each(function(i, tr) {
           return $(tr).find('td').eq(index).remove();
         });
+        this.refreshTableWidth($table);
         return this.editor.selection.setRangeAtEndOf($newTd);
       }
     };
 
     TableButton.prototype.insertCol = function($td, direction) {
-      var $newCol, $newTd, $table, $tr, index,
+      var $col, $newCol, $newTd, $table, $tr, index, tableWidth, width,
         _this = this;
       if (direction == null) {
         direction = 'after';
@@ -3848,13 +3869,19 @@
       $tr = $td.parent('tr');
       index = $tr.find('td').index($td);
       $table = $td.closest('table');
+      $col = $table.find('col').eq(index);
       $table.find('tr').each(function(i, tr) {
         var $newTd;
         $newTd = $('<td/>').append(_this.editor.util.phBr);
         return $(tr).find('td').eq(index)[direction]($newTd);
       });
       $newCol = $('<col/>');
-      $table.find('col').eq(index)[direction]($newCol);
+      $col[direction]($newCol);
+      tableWidth = $table.width();
+      width = Math.max(parseFloat($col.attr('width')) / 2, 50 / tableWidth * 100);
+      $col.attr('width', width + '%');
+      $newCol.attr('width', width + '%');
+      this.refreshTableWidth($table);
       $newTd = direction === 'after' ? $td.next('td') : $td.prev('td');
       return this.editor.selection.setRangeAtStartOf($newTd);
     };
